@@ -133,43 +133,45 @@ func (s *server) trimMessageHistory(userID, chatJID string, limit int) error {
 
 	if s.db.DriverName() == "postgres" {
 		queryHistory = `
-            DELETE FROM message_history
-            WHERE id IN (
-                SELECT id FROM message_history
-                WHERE user_id = $1 AND chat_jid = $2
-                ORDER BY timestamp DESC
-                OFFSET $3
-            )`
+        DELETE FROM message_history
+        WHERE id IN (
+            SELECT id FROM message_history
+            WHERE user_id = $1 AND chat_jid = $2
+            ORDER BY timestamp DESC
+            OFFSET $3
+        )`
 
 		querySecrets = `
-            DELETE FROM whatsmeow_message_secrets
-            WHERE message_id IN (
-                SELECT id FROM message_history
-                WHERE user_id = $1 AND chat_jid = $2
-                ORDER BY timestamp DESC
-                OFFSET $3
-            )`
-	} else { // sqlite
+        DELETE FROM whatsmeow_message_secrets
+        WHERE message_id IN (
+            SELECT message_id
+            FROM message_history
+            WHERE chat_jid = $2
+            ORDER BY timestamp DESC
+            OFFSET $3
+        )`
+	} else {
 		queryHistory = `
-            DELETE FROM message_history
-            WHERE id IN (
-                SELECT id FROM message_history
-                WHERE user_id = ? AND chat_jid = ?
-                ORDER BY timestamp DESC
-                LIMIT -1 OFFSET ?
-            )`
+        DELETE FROM message_history
+        WHERE id IN (
+            SELECT id FROM message_history
+            WHERE user_id = ? AND chat_jid = ?
+            ORDER BY timestamp DESC
+            LIMIT -1 OFFSET ?
+        )`
 
 		querySecrets = `
-            DELETE FROM whatsmeow_message_secrets
-            WHERE message_id IN (
-                SELECT id FROM message_history
-                WHERE user_id = ? AND chat_jid = ?
-                ORDER BY timestamp DESC
-                LIMIT -1 OFFSET ?
-            )`
+        DELETE FROM whatsmeow_message_secrets
+        WHERE message_id IN (
+            SELECT message_id
+            FROM message_history
+            WHERE chat_jid = ?
+            ORDER BY timestamp DESC
+            LIMIT -1 OFFSET ?
+        )`
 	}
 
-	if _, err := s.db.Exec(querySecrets, userID, chatJID, limit); err != nil {
+	if _, err := s.db.Exec(querySecrets, chatJID, limit); err != nil {
 		return fmt.Errorf("failed to trim message secrets: %w", err)
 	}
 
